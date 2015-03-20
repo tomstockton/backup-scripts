@@ -1,0 +1,79 @@
+#!/usr/bin/expect
+set timeout 15
+set host [lindex $argv 0]
+set username [lindex $argv 1]
+set password [lindex $argv 2]
+set en_password [lindex $argv 3]
+set tftp [lindex $argv 4]
+set file [lindex $argv 5]
+ 
+#Open the SSH session
+spawn ssh -o "StrictHostKeyChecking=no" -l $username $host
+sleep 2
+ 
+#Catch the password prompt and send supplied password
+expect {
+"word:" {send "$password\r"}
+default {exit 1}
+}
+sleep 1
+
+# Enter enable mode
+expect {
+">" {send "enable\r"}
+default {exit 1}
+}
+sleep 1
+ 
+#Catch the password prompt and send supplied password
+expect {
+"word:" {send "$en_password\r"}
+default {exit 1}
+}
+sleep 1
+
+#Catch the enabled prompt and issue the command to backup running configuration
+expect {
+"#" {send "copy running-config tftp:\r"}
+default {exit 1}
+} 
+sleep 1
+ 
+#Expect the two confirmation questions and answer
+expect {
+"?" {send "$tftp\r"}
+}
+sleep 1
+expect {
+"?" {send "$file.running\r"}
+}
+ 
+#Wait long enough for file transfer.
+sleep 5
+
+# Test xfer worked otherwise exit
+expect {
+"copied" { }
+default {exit 1}
+}
+
+# Backup startup config
+expect {
+"#" {send "copy startup-config tftp:\r"}
+} 
+sleep 1
+ 
+#Expect the two confirmation questions and answer
+expect {
+"?" {send "$tftp\r"}
+}
+sleep 1
+expect {
+"?" {send "$file.startup\r"}
+}
+
+# Test xfer worked otherwise exit
+expect {
+"copied" { }
+default {exit 1}
+}
